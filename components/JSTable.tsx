@@ -3,6 +3,8 @@ import { Table } from '@mantine/core';
 import { Menu, Button } from '@mantine/core';
 import { ChevronDown } from 'tabler-icons-react';
 import { ElementInfo } from '../types';
+import { useResizeObserver } from '@mantine/hooks';
+import { useViewportSize } from '@mantine/hooks';
 import _ from "lodash";
 import styles from '../styles/Home.module.css'
 
@@ -11,39 +13,31 @@ interface JSTableProps {
 }
 
 const JSTable = ({data} : JSTableProps) => {
-  const [collapsed, setCollapsed] = useState<Array<boolean>>(data.map(item => false))
-  const elRefs = useRef<HTMLDivElement[]>([]);
+  const { width } = useViewportSize();
   const tBodyRef = useRef<HTMLTableSectionElement>(null);
-
-  if (elRefs.current.length !== data.length) {
-    // add or remove refs
-    elRefs.current = Array(data.length)
-      .map((_, i) => elRefs.current[i] || createRef());
-  }
-    
+  const cellRef = useRef<HTMLDivElement>(null);
+  const [collapsed, setCollapsed] = useState<Array<boolean>>(data.map(item => false))
+      
   const calcPosition = () => {
-    let newCollapsed = [...collapsed]
     setCollapsed(Array(data.length).fill(false))
     setTimeout(() => {
+      let newCollapsed = [...collapsed]
       const len = tBodyRef.current?.rows.length || 0;
-      if(tBodyRef.current) {
+      
+      if(tBodyRef.current && cellRef.current) {
         for(let i = 0; i < len; i++) {    
-          newCollapsed[i] = tBodyRef.current?.rows[i].clientHeight > 60
+          newCollapsed[i] = tBodyRef.current?.rows[i].clientHeight > cellRef.current.clientHeight * 2
         }
+        setCollapsed(newCollapsed)
       }
-      setCollapsed(newCollapsed)
     }, 300)
   }
 
-  const debounceResize = _.debounce(calcPosition, 300);
+  const debounceResize = _.debounce(calcPosition, 200);
 
   useEffect(() => {
-    window.addEventListener('resize', debounceResize);
-    calcPosition()
-    return () => {
-      window.removeEventListener('resize', debounceResize);
-    };
-  }, [tBodyRef])
+    debounceResize()
+  }, [width])
 
   return (
     <Table striped highlightOnHover>
@@ -76,9 +70,9 @@ const JSTable = ({data} : JSTableProps) => {
               ))}
             </Menu>
             :
-            <div className={styles.cellFlex} /*ref={elRefs.current[idx]}*/>
+            <div className={styles.cellFlex}>
             {element.compound.map((item) => (
-              <div key={`comp-${item}`} className={styles.compound}>{item}</div>
+              <div key={`comp-${item}`} className={styles.compound} ref={cellRef}> {item}</div>
             ))}
             </div>
             }
